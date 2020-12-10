@@ -1,0 +1,21 @@
+{
+    "name": "cding/baidutj",
+    "authors": [
+        {
+            "name": "cding",
+            "email": "cding1993@163.com"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "Cding\\Baidutj\\": "src"
+        }
+    },
+    "require": {
+        "php": ">=7.0",
+        "ext-zlib": "*",
+        "ext-json": "*",
+        "ext-openssl": "*",
+        "ext-curl": "*"
+    }
+}
