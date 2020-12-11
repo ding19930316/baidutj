@@ -9,7 +9,10 @@
     "autoload": {
         "psr-4": {
             "Cding\\Baidutj\\": "src"
-        }
+        },
+        "files": [
+            "help.php"
+        ]
     },
     "require": {
         "php": ">=7.0",

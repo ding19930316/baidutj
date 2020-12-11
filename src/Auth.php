@@ -1,37 +1,27 @@
 <?php
+
 namespace Cding\Baidutj;
 
-use Cding\Baidutj\Post;
-
-class Auth {
+class Auth
+{
     private $config;
 
+    private $headers;
 
     public $ucid = null;
 
     public $st = null;
 
-    const LOGIN_URL = 'https://api.baidu.com/sem/common/HolmesLoginService';
-
-    const PUBLIC_KEY = <<<publicKey
------BEGIN PUBLIC KEY-----
-MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDHn/hfvTLRXViBXTmBhNYEIJeG
-GGDkmrYBxCRelriLEYEcrwWrzp0au9nEISpjMlXeEW4+T82bCM22+JUXZpIga5qd
-BrPkjU08Ktf5n7Nsd7n9ZeI0YoAKCub3ulVExcxGeS3RVxFai9ozERlavpoTOdUz
-EH6YWHP4reFfpMpLzwIDAQAB
------END PUBLIC KEY-----
-publicKey;
-
-
     public function __construct($config)
     {
-        $this->post = new Post($config);
         $this->config = $config;
         $this->headers = [
             'UUID: ' . $this->uuid,
             'account_type: ' . $this->account_type,
             'Content-Type:  data/gzencode and rsa public encrypt;charset=UTF-8'
         ];
+
+        return $this->login();
     }
 
     public function __get($name)
@@ -39,9 +29,62 @@ publicKey;
         return isset($this->config[$name]) ? $this->config[$name] : null;
     }
 
+    /**
+     * @param $data
+     * @return null
+     */
+    private function pubEncrypt($data)
+    {
+        if (!is_string($data)) {
+            return null;
+        }
+        $ret = openssl_public_encrypt($data, $encrypted, $this->public_key);
+        if ($ret) {
+            return $encrypted;
+        } else {
+            return null;
+        }
+    }
+
+    /**
+     * @param $data
+     * @return string
+     *
+     * generate post data
+     */
+    private function genPostData($data)
+    {
+        $gzData = gzencode(json_encode($data), 9);
+        for ($index = 0, $enData = ''; $index < strlen($gzData); $index += 117) {
+            $gzPackData = substr($gzData, $index, 117);
+            $enData .= $this->pubEncrypt($gzPackData);
+        }
+        return $enData;
+    }
+
     private function post($url, $data)
     {
-        return $this->post->post($url, $data);
+        $data = $this->genPostData($data);
+
+        $curl = curl_init();
+        curl_setopt($curl, CURLOPT_URL, $url);
+        curl_setopt($curl, CURLOPT_HTTPHEADER, $this->headers);
+        curl_setopt($curl, CURLOPT_POST, 1);
+        curl_setopt($curl, CURLOPT_POSTFIELDS, $data);
+        curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
+
+        $tmpInfo = curl_exec($curl);
+        if (curl_errno($curl)) {
+        }
+        curl_close($curl);
+
+        $res['code'] = ord($tmpInfo[0]) * 64 + ord($tmpInfo[1]);
+
+        if ($res['code'] === 0) {
+            $res['data'] = substr($tmpInfo, 8);
+        }
+
+        return $res;
     }
 
     private function preLogin()
@@ -58,7 +101,7 @@ publicKey;
             ],
         ];
 
-        $res = $this->post(self::LOGIN_URL, $preLoginData);
+        $res = $this->post($this->login_url, $preLoginData);
 
         if ($res['code'] === 0) {
             $retData = gzdecode($res['data']);
@@ -76,8 +119,7 @@ publicKey;
 
     }
 
-
-    public function login()
+    protected function login()
     {
         $this->preLogin();
 
@@ -90,7 +132,7 @@ publicKey;
                 'password' => $this->password,
             ],
         ];
-        $res = $this->post(self::LOGIN_URL, $loginData);
+        $res = $this->post($this->login_url, $loginData);
 
         if ($res['code'] === 0) {
             $retData = gzdecode($res['data']);
@@ -126,7 +168,7 @@ publicKey;
                 'st' => $this->st,
             ],
         ];
-        $res = $this->post(self::LOGIN_URL, $logoutData);
+        $res = $this->post($this->login_url, $logoutData);
 
         if ($res['code'] === 0) {
             $retData = gzdecode($res['data']);
